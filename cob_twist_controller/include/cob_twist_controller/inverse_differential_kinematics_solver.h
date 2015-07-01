@@ -28,7 +28,6 @@
 #ifndef INVERSE_DIFFERENTIAL_KINEMATICS_SOLVER_H
 #define INVERSE_DIFFERENTIAL_KINEMATICS_SOLVER_H
 
-#include <cob_twist_controller/constraint_solvers/constraint_solver_factory.h>
 #include <kdl/chainiksolver.hpp>
 #include <kdl/chainjnttojacsolver.hpp>
 #include <Eigen/Core>
@@ -36,8 +35,10 @@
 
 #include "cob_twist_controller/cob_twist_controller_data_types.h"
 #include "cob_twist_controller/callback_data_mediator.h"
+#include "cob_twist_controller/limiters/limiter.h"
+#include "cob_twist_controller/kinematic_extensions/kinematic_extension.h"
+#include "cob_twist_controller/constraint_solvers/constraint_solver_factory.h"
 #include "cob_twist_controller/task_stack/task_stack_controller.h"
-
 
 /**
 * Implementation of a inverse velocity kinematics algorithm based
@@ -58,60 +59,43 @@ public:
      * kinematics for
      *
      */
-        InverseDifferentialKinematicsSolver(const KDL::Chain& chain, CallbackDataMediator& data_mediator) :
+    InverseDifferentialKinematicsSolver(const KDL::Chain& chain, CallbackDataMediator& data_mediator) :
         chain_(chain),
         jac_(chain_.getNrOfJoints()),
         jnt2jac_(chain_),
         callback_data_mediator_(data_mediator),
         constraint_solver_factory_(data_mediator, jnt2jac_)
     {
-            last_p_in_vec_ = t_Vector6d::Zero();
+        this->limiters_.reset(new LimiterContainer(this->params_, this->chain_));
+        this->limiters_->init();
+        
+        this->kinematic_extension_.reset(KinematicExtensionBuilder::createKinematicExtension(this->params_));
     }
 
-    virtual ~InverseDifferentialKinematicsSolver() {};
+    virtual ~InverseDifferentialKinematicsSolver()
+    {
+        this->limiters_.reset();
+        this->kinematic_extension_.reset();
+    };
     
-    /** CartToJnt for chain using SVD including base and various DampingMethods **/
+    /** CartToJnt for chain using SVD considering KinematicExtensions and various DampingMethods **/
     virtual int CartToJnt(const JointStates& joint_states,
                           const KDL::Twist& v_in,
-                          const KDL::Frame &base_position,
-                          const KDL::Frame &chain_base,
                           KDL::JntArray& qdot_out);
 
-    inline virtual int CartToJnt(const JointStates& joint_states,
-                                 const KDL::Twist& v_in,
-                                 KDL::JntArray& qdot_out)
-    {
-        KDL::Frame dummy;
-        dummy.p = KDL::Vector(0,0,0);
-        dummy.M = KDL::Rotation::Quaternion(0,0,0,0);
-        return CartToJnt(joint_states, v_in, dummy, dummy, qdot_out);
-    }
-
-    inline InvDiffKinSolverParams GetInvDiffKinSolverParams() const
-    {
-        return params_;
-    }
-
-    void resetAll(InvDiffKinSolverParams params);
+    void resetAll(TwistControllerParams params);
 
 private:
     const KDL::Chain chain_;
-    KDL::Jacobian jac_, jac_base_;
+    KDL::Jacobian jac_;
     KDL::ChainJntToJacSolver jnt2jac_;
-    InvDiffKinSolverParams params_;
+    TwistControllerParams params_;
     CallbackDataMediator& callback_data_mediator_;
+    boost::shared_ptr<LimiterContainer> limiters_;
+    boost::shared_ptr<KinematicExtensionBase> kinematic_extension_;
     ConstraintSolverFactory constraint_solver_factory_;
 
     TaskStackController_t task_stack_controller_;
 
-    t_Vector6d last_p_in_vec_;
-
-    /**
-     * Adjustment of the member Jacobian
-     * @param joint_states Input joint states with history.
-     * @param base_position Current base position.
-     * @param chain_base Current frame of the chain base.
-     */
-    void adjustJac(const JointStates& joint_states, const KDL::Frame &base_position, const KDL::Frame &chain_base);
 };
 #endif // INVERSE_DIFFERENTIAL_KINEMATICS_SOLVER_H

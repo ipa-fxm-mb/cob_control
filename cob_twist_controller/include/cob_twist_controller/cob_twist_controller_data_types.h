@@ -51,14 +51,25 @@ typedef Eigen::Matrix<double,7,1> t_Vector7d;
 typedef Eigen::Matrix<double,7,6> t_Matrix76d;
 
 enum DampingMethodTypes {
-    NONE = 0,
+    NO_DAMPING = 0,
     CONSTANT = 1,
     MANIPULABILITY = 2,
-    LSV = 3,
+    LEAST_SINGULAR_VALUE = 3,
 };
 
+enum HardwareInterfaceTypes {
+    VELOCITY_INTERFACE = 0,
+    POSITION_INTERFACE = 1,
+};
+
+enum KinematicExtensionTypes {
+    NO_EXTENSION = 0,
+    BASE_ACTIVE = 1,
+};
+
+
 enum ContraintTypes {
-    None = 0,
+    NO_CONSTRAINT = 0,
     WLN = 1,
     WLN_JLA = 2,
     GPM_JLA = 3,
@@ -78,32 +89,16 @@ struct JointStates
     KDL::JntArray last_q_dot_;
 };
 
-struct InvDiffKinSolverParams {
-    DampingMethodTypes damping_method;
-    bool numerical_filtering;
-    double damping_factor;
-    double lambda_max;
-    double w_threshold;
-    double beta;
-    double eps_damping;
-    ContraintTypes constraint;
-    double k_H;
-    double eps_truncation;
-    bool base_compensation;
-    bool base_active;
-    double base_ratio;
-
-    double mu;
-
-    // added limits from URDF file
-    std::vector<double> limits_max;
-    std::vector<double> limits_min;
-    std::vector<double> limits_vel;
-    std::vector<std::string> frame_names;
-
-
-    // TODO: Check for better place
-    TaskStackController_t *task_stack_controller;
+struct ActiveCartesianDimension {
+    ActiveCartesianDimension():
+        lin_x(0.0), lin_y(0.0), lin_z(0.0), rot_x(0.0), rot_y(0.0), rot_z(0.0) {}
+    
+    double lin_x;
+    double lin_y;
+    double lin_z;
+    double rot_x;
+    double rot_y;
+    double rot_z;
 };
 
 struct ObstacleDistanceInfo
@@ -118,25 +113,52 @@ struct ObstacleDistanceInfo
 
 struct TwistControllerParams {
     uint8_t dof;
-    bool base_active;
-    bool base_compensation;
+    std::string chain_base_link;
+    std::string chain_tip_link;
+    
+    HardwareInterfaceTypes hardware_interface_type;
+    
+    bool numerical_filtering;
+    DampingMethodTypes damping_method;
+    double damping_factor;
+    double lambda_max;
+    double w_threshold;
+    double beta;
+    double eps_damping;
+    
+    ContraintTypes constraint;
+    double mu;
+    double k_H;
+    
+    double eps_truncation;
+    
+    bool keep_direction;
+    bool enforce_pos_limits;
+    bool enforce_vel_limits;
+    double tolerance;
+    
+    // added limits from URDF file
+    std::vector<double> limits_max;
+    std::vector<double> limits_min;
+    std::vector<double> limits_vel;
+    
     double max_vel_lin;
     double max_vel_rot;
     double max_vel_lin_base;
     double max_vel_rot_base;
-    double tolerance;
+    
+    bool base_compensation;
+    KinematicExtensionTypes kinematic_extension;
+    double base_ratio;
 
-    bool keep_direction;
-    bool enforce_pos_limits;
-    bool enforce_vel_limits;
 
-    // added limits from URDF file
-    std::vector<double> limits_vel;
-    std::vector<double> limits_min;
-    std::vector<double> limits_max;
-
+    std::vector<std::string> frame_names;
     // added a vector to contain all frames of interest for collision checking.
     std::vector<std::string> collision_check_frames;
+
+
+    // TODO: Check for better place
+    TaskStackController_t* task_stack_controller;
 };
 
 enum EN_ConstraintStates

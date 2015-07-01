@@ -48,10 +48,10 @@
  * Dependent on JLA active flag a JointLimitAvoidanceSolver or a UnconstraintSolver is generated to solve the IK problem.
  * The objects are generated for each solve-request. After calculation the objects are deleted.
  */
-int8_t ConstraintSolverFactory::calculateJointVelocities(t_Matrix6Xd &jacobian_data,
-                                                         const t_Vector6d &in_cart_velocities,
+int8_t ConstraintSolverFactory::calculateJointVelocities(t_Matrix6Xd& jacobian_data,
+                                                         const t_Vector6d& in_cart_velocities,
                                                          const JointStates& joint_states,
-                                                         Eigen::MatrixXd &out_jnt_velocities)
+                                                         Eigen::MatrixXd& out_jnt_velocities)
 {
     out_jnt_velocities = Eigen::MatrixXd::Zero(joint_states.current_q_dot_.rows(),
                                                joint_states.current_q_dot_.columns());
@@ -81,13 +81,13 @@ int8_t ConstraintSolverFactory::calculateJointVelocities(t_Matrix6Xd &jacobian_d
 /**
  * Given a proper constraint_type a corresponding SolverFactory is generated and returned.
  */
-bool ConstraintSolverFactory::getSolverFactory(const InvDiffKinSolverParams &params,
+bool ConstraintSolverFactory::getSolverFactory(const TwistControllerParams& params,
                                                boost::shared_ptr<ISolverFactory>& solver_factory)
 {
     ROS_INFO_STREAM("Called ConstraintSolverFactory::getSolverFactory");
     switch(params.constraint)
     {
-        case None:
+        case NO_CONSTRAINT:
             solver_factory.reset(new SolverFactory<UnconstraintSolver>(params));
             break;
         case WLN:
@@ -122,11 +122,11 @@ bool ConstraintSolverFactory::getSolverFactory(const InvDiffKinSolverParams &par
     return true;
 }
 
-int8_t ConstraintSolverFactory::resetAll(const InvDiffKinSolverParams &params)
+int8_t ConstraintSolverFactory::resetAll(const TwistControllerParams& params)
 {
     ROS_INFO_STREAM("Called ConstraintSolverFactory::resetAll");
 
-    this->damping_method_.reset(DampingBuilder::create_damping(params));
+    this->damping_method_.reset(DampingBuilder::createDamping(params));
     if(NULL == this->damping_method_)
     {
         ROS_ERROR("Returning NULL due to damping creation error.");
